@@ -5,7 +5,15 @@
     <Page id="page" title="{i18n>title}">
 
         <VBox class="sapUiSmallMargin">
-            <ui:FileUploader id="fileUploader" multiple="true" change="onUploadFile" />
+            <ui:FileUploader 
+                id="fileUploader" 
+                multiple="true" 
+                change="onChangeUpload" 
+                uploadUrl="/sap/opu/odata/SAP/ZFILE_SRV/FileSet" 
+                uploadComplete="handleUploadComplete"
+                useMultipart="false"
+                />
+            <Button text="Enviar ao servidor" press="onPressUpload"/>
         </VBox>
 
         <VBox class="sapUiSmallMargin">

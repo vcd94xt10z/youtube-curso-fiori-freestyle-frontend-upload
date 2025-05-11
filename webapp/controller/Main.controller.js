@@ -1,6 +1,7 @@
 sap.ui.define([
-    "sap/ui/core/mvc/Controller"
-], (Controller) => {
+    "sap/ui/core/mvc/Controller",
+    "sap/m/MessageToast"
+], (Controller,MessageToast) => {
     "use strict";
 
     return Controller.extend("zfile.controller.Main", {
@@ -13,6 +14,7 @@ sap.ui.define([
 			jQueryScript.setAttribute('src', 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.10.0/xlsx.js');
 			document.head.appendChild(jQueryScript);
 
+            /*
             var oView = this.getView();
             var oModel = this.getOwnerComponent().getModel();
             oModel.read("/FileSet", {
@@ -21,14 +23,79 @@ sap.ui.define([
                     console.log(oResponse);
                 }
             });
+            */
         },
 
-        onUploadFile:function(e){
+        loadFile: function(oFile,callback){
+            var reader = new FileReader();
+            reader.onerror = function(){ alert('Unable to read ' + oFile.name); };
+            reader.onload = function(event){
+                var content = event.target.result;
+                oFile.content = content;
+                callback(oFile);
+            };
+            reader.readAsBinaryString(oFile);
+        },
+
+        onPressUpload: function(oEvent) {
+            var oModel = this.getOwnerComponent().getModel();
+            
+            // fazendo uma cópia do array de arquivos
+            window.fileQueue = window.files.slice();
+
+            MessageToast.show("Enviando "+window.fileQueue.length+" arquivos para o servidor");
+            console.clear();
+
+            oModel.refreshSecurityToken();
+            window.csrfToken = oModel.oHeaders['x-csrf-token'];
+
+            this.sendFileToServerQueue();
+        },
+
+        sendFileToServerQueue: function(){
+            var that   = this;
+            var oView  = this.getView();
+            var oModel = this.getOwnerComponent().getModel();
+            var oFile  = window.fileQueue.shift();
+
+            if(oFile == null || oFile == undefined){
+                return;
+            }
+
+            this.loadFile(oFile,function(oFile2){
+                var csrfToken = window.csrfToken;
+
+                oView.setBusy(true);
+
+                // enviando via ajax puro pois o model não esta funcionando com arquivos binários, somente
+                // com texto. Não encontrei nada sobre isso na documentação, me parece um bug. Existem
+                // outras formas de fazer upload, porém essa temos mais controle sobre todo o processo
+                var xhr = new XMLHttpRequest();
+                xhr.open("POST", "/sap/opu/odata/sap/ZFILE_SRV/FileSet", true);
+                xhr.setRequestHeader("Content-Type", oFile2.type);
+                xhr.setRequestHeader("Slug", encodeURIComponent(oFile2.name));
+                xhr.setRequestHeader("x-csrf-token", csrfToken);
+                xhr.onload = function () {
+                    if (xhr.status === 201) {
+                        oView.setBusy(false);
+
+                        that.sendFileToServerQueue();
+                    } else {
+                        MessageToast.show("Erro no upload");
+                    }
+                };
+                xhr.send(oFile);
+            });
+        },
+
+        onChangeUpload: function(e){
             var that   = this;
             var aFiles = e.getParameter("files");
 
             console.clear();
-            console.log(aFiles)
+
+            // guardando em memória para usar no upload
+            window.files = Array.from(aFiles);
 
             var oFile1 = aFiles[0];
             var oFile2 = aFiles[1];
