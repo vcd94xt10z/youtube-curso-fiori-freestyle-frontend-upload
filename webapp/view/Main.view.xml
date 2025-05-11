@@ -1,6 +1,26 @@
 <mvc:View controllerName="zfile.controller.Main"
     xmlns:mvc="sap.ui.core.mvc"
-    xmlns="sap.m">
+    xmlns="sap.m"
+    xmlns:ui="sap.ui.unified">
     <Page id="page" title="{i18n>title}">
+
+        <VBox class="sapUiSmallMargin">
+            <ui:FileUploader id="fileUploader" multiple="true" change="onUploadFile" />
+        </VBox>
+
+        <VBox class="sapUiSmallMargin">
+            <Text text="Arquivo de texto"/>
+            <TextArea id="texto1" rows="4" width="100%" />
+
+            <Text text="Arquivo Excel (binário)" class="sapUiSmallMarginTop"/>
+            <TextArea id="texto2" rows="4" width="100%" />
+
+            <Text text="Arquivo de imagem (binário)" class="sapUiSmallMarginTop"/>
+            <Image id="imagem1" width="600px"/>
+            
+            <Text text="Arquivo PDF (binário)" class="sapUiSmallMarginTop"/>
+            <PDFViewer id="pdf1" source="" isTrustedSource="true" title="Documento PDF" height="400px"/>
+        </VBox>
+
     </Page>
 </mvc:View>
