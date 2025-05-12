@@ -14,16 +14,11 @@ sap.ui.define([
 			jQueryScript.setAttribute('src', 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.10.0/xlsx.js');
 			document.head.appendChild(jQueryScript);
 
-            /*
+            var oModel = new sap.ui.model.json.JSONModel([]);
             var oView = this.getView();
-            var oModel = this.getOwnerComponent().getModel();
-            oModel.read("/FileSet", {
-                success: (oData,oResponse) => {
-                    console.log(oData);
-                    console.log(oResponse);
-                }
-            });
-            */
+
+            oView.setModel(oModel,"fileModel");
+            this.loadFileList();
         },
 
         loadFile: function(oFile,callback){
@@ -38,6 +33,7 @@ sap.ui.define([
         },
 
         onPressUpload: function(oEvent) {
+            var that   = this;
             var oModel = this.getOwnerComponent().getModel();
             
             // fazendo uma cópia do array de arquivos
@@ -49,16 +45,31 @@ sap.ui.define([
             oModel.refreshSecurityToken();
             window.csrfToken = oModel.oHeaders['x-csrf-token'];
 
-            this.sendFileToServerQueue();
+            this.sendFileToServerQueue(function(){
+                that.loadFileList();
+            });
         },
 
-        sendFileToServerQueue: function(){
+        loadFileList: function(){
+            var oModel  = this.getOwnerComponent().getModel();
+            var oView   = this.getView();
+            var oModel1 = oView.getModel("fileModel");
+
+            oModel.read("/FileSet", {
+                success: (oData,oResponse) => {
+                    oModel1.setData(oData.results);
+                }
+            });
+        },
+
+        sendFileToServerQueue: function(finishCallback){
             var that   = this;
             var oView  = this.getView();
             var oModel = this.getOwnerComponent().getModel();
             var oFile  = window.fileQueue.shift();
 
             if(oFile == null || oFile == undefined){
+                finishCallback();
                 return;
             }
 
@@ -67,9 +78,9 @@ sap.ui.define([
 
                 oView.setBusy(true);
 
-                // enviando via ajax puro pois o model não esta funcionando com arquivos binários, somente
-                // com texto. Não encontrei nada sobre isso na documentação, me parece um bug. Existem
-                // outras formas de fazer upload, porém essa temos mais controle sobre todo o processo
+                // usando ajax puro pois o model não esta funcionando com arquivos binários, somente
+                // com texto. Não encontrei nada sobre isso na documentação, me parece um bug. 
+                // Existem outras formas de fazer upload, porém essa temos mais controle sobre todo o processo
                 var xhr = new XMLHttpRequest();
                 xhr.open("POST", "/sap/opu/odata/sap/ZFILE_SRV/FileSet", true);
                 xhr.setRequestHeader("Content-Type", oFile2.type);
@@ -79,7 +90,7 @@ sap.ui.define([
                     if (xhr.status === 201) {
                         oView.setBusy(false);
 
-                        that.sendFileToServerQueue();
+                        that.sendFileToServerQueue(finishCallback);
                     } else {
                         MessageToast.show("Erro no upload");
                     }
@@ -156,6 +167,62 @@ sap.ui.define([
                 that.getView().byId('pdf1').setSource(_pdfurl);
             };
             reader4.readAsBinaryString(oFile4);
+        },
+
+        onDelete: function(oEvent){
+            var that    = this;
+            var oItem   = oEvent.getParameter("listItem");
+            var sPath   = oItem.getBindingContextPath();
+            var oFModel = this.getView().getModel("fileModel");
+            var oModel  = this.getOwnerComponent().getModel();
+
+            var oFile   = oFModel.getProperty(sPath);
+
+            oModel.remove("/FileSet("+oFile.Fileid+")", {
+                success: (oData,oResponse) => {
+                    MessageToast.show("Arquivo "+oFile.Filename+" removido com sucesso");
+                    that.loadFileList();
+                },
+                error: (oError) => {
+                    MessageToast.show("Erro ao remover arquivo "+oFile.Filename);
+                }
+            });
+        },
+
+        onPressItem: function(oEvent){
+            var that    = this;
+            var sPath = oEvent.getSource().getBindingContextPath();
+            var oFModel = this.getView().getModel("fileModel");
+            var oFile   = oFModel.getProperty(sPath);
+            var sURI    = "/sap/opu/odata/sap/ZFILE_SRV/FileSet("+oFile.Fileid+")/$value";
+
+            // funciona abrir a URL porém, o nome do arquivo fica padrão (não respeita o que foi definido no backend)
+            //var oWin    = window.open(sURI,'_self');
+            //return;
+            
+            jQuery.sap.addUrlWhitelist("blob");
+            
+            // usando ajax puro pois o model não esta funcionando com arquivos binários, somente
+            // com texto. Não encontrei nada sobre isso na documentação, me parece um bug. 
+            var xhr = new XMLHttpRequest();
+            xhr.open("GET", sURI, true);
+            xhr.setRequestHeader("Accept", "*/*");
+            xhr.responseType = "blob";
+            xhr.onload = function () {
+                if (xhr.status === 200) {
+                    var blob = new Blob([xhr.response], { type: oFile.Mimetype });
+                    var link = document.createElement("a");
+                    link.href = window.URL.createObjectURL(blob);
+                    link.download = oFile.Filename;
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    window.URL.revokeObjectURL(link.href);
+                } else {
+                    MessageToast.show("Erro no download");
+                }
+            };
+            xhr.send(oFile);
         }
     });
 });
