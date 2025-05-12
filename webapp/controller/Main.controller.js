@@ -34,7 +34,7 @@ sap.ui.define([
 
         onPressUpload: function(oEvent) {
             var that   = this;
-            var oModel = this.getOwnerComponent().getModel();
+            //var oModel = this.getOwnerComponent().getModel();
             
             // fazendo uma cópia do array de arquivos
             window.fileQueue = window.files.slice();
