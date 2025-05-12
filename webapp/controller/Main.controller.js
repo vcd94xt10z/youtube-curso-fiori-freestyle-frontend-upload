@@ -42,9 +42,9 @@ sap.ui.define([
             MessageToast.show("Enviando "+window.fileQueue.length+" arquivos para o servidor");
             console.clear();
 
-            oModel.refreshSecurityToken();
-            window.csrfToken = oModel.oHeaders['x-csrf-token'];
-
+            // Tentei enviar vários arquivos para o backend porém um por requisição mas
+            // não funcionou, o FileUploader sempre envia todos os arquivos para o backend, 
+            // não encontrei uma forma de fazer isso, tentei Google, ChatGPT e nada.
             this.sendFileToServerQueue(function(){
                 that.loadFileList();
             });
@@ -74,7 +74,7 @@ sap.ui.define([
             }
 
             this.loadFile(oFile,function(oFile2){
-                var csrfToken = window.csrfToken;
+                var csrfToken = oModel.getSecurityToken();
 
                 oView.setBusy(true);
 
@@ -197,7 +197,7 @@ sap.ui.define([
             var sURI    = "/sap/opu/odata/sap/ZFILE_SRV/FileSet("+oFile.Fileid+")/$value";
 
             // funciona abrir a URL porém, o nome do arquivo fica padrão (não respeita o que foi definido no backend)
-            //var oWin    = window.open(sURI,'_self');
+            //var oWin = window.open(sURI,'_self');
             //return;
             
             jQuery.sap.addUrlWhitelist("blob");
